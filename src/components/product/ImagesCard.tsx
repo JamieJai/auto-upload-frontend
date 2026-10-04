@@ -7,6 +7,7 @@ import { api, errorMessage, fileUrl } from '@/lib/api'
 import { slots } from '@/lib/labels'
 import type { Product, Slot } from '@/lib/types'
 import { Section } from './Section'
+import { WebImageFinder } from './WebImageFinder'
 
 export function ImagesCard({ product, tenantId, editable, onChange }: { product: Product; tenantId: number; editable: boolean; onChange: () => void }) {
   const [busy, setBusy] = useState<Slot | null>(null)
@@ -87,6 +88,7 @@ export function ImagesCard({ product, tenantId, editable, onChange }: { product:
           )
         })}
       </div>
+      {editable && <WebImageFinder tenantId={tenantId} productId={product.id} onImported={onChange} />}
     </Section>
   )
 }
