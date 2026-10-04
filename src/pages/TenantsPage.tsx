@@ -167,12 +167,17 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
   const [displayName, setDisplayName] = useState('')
   const [creds, setCreds] = useState<Record<string, string>>({})
   const [active, setActive] = useState(true)
+  const [dryRun, setDryRun] = useState(true)
+  const [displayStatus, setDisplayStatus] = useState('SUSPENSION')
+  const [templateNo, setTemplateNo] = useState('')
 
   useEffect(() => {
     if (editing && editing !== 'new') {
       setChannel(editing.channel)
       setDisplayName(editing.displayName)
       setActive(editing.active)
+      setDryRun(editing.settings.dryRun !== false)
+      setDisplayStatus(String(editing.settings.displayStatus ?? 'SUSPENSION'))
     } else if (editing === 'new') {
       setDisplayName('')
       setActive(true)
@@ -184,7 +189,10 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
     try {
       const filled = Object.fromEntries(Object.entries(creds).filter(([, v]) => v.trim()))
       // 수정 때 인증정보를 비워 두면 기존 값을 유지한다
-      const body = { channel, displayName, active, credentials: Object.keys(filled).length ? filled : editing === 'new' ? {} : null }
+      const base = editing && editing !== 'new' ? editing.settings : {}
+      const settings = channel === 'SMARTSTORE' ? { ...base, dryRun, displayStatus } : base
+      if (channel === 'SMARTSTORE' && !dryRun && !confirm('DRY RUN 을 끄면 승인한 상품이 실제 스마트스토어에 등록됩니다. 계속할까요?')) return
+      const body = { channel, displayName, active, settings, credentials: Object.keys(filled).length ? filled : editing === 'new' ? {} : null }
       if (editing === 'new') await api(`/api/tenants/${tenantId}/channel-accounts`, { json: body })
       else if (editing) await api(`/api/tenants/${tenantId}/channel-accounts/${editing.id}`, { method: 'PUT', json: body })
       toast.success('저장했습니다')
@@ -215,7 +223,16 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
                 <Badge variant={a.hasCredentials ? 'outline' : 'destructive'}>{a.hasCredentials ? '인증정보 있음' : '인증정보 없음'}</Badge>
                 {!a.active && <Badge variant="secondary" className="ml-1">비활성</Badge>}
               </TableCell>
-              <TableCell className="text-xs text-muted-foreground">{when(a.updatedAt)}</TableCell>
+              <TableCell className="text-xs">
+                {a.channel === 'SMARTSTORE' && (
+                  <>
+                    <Badge variant={a.settings.dryRun === false ? 'default' : 'secondary'}>{a.settings.dryRun === false ? '실제 등록' : 'DRY RUN'}</Badge>{' '}
+                    <Badge variant="outline">{a.settings.displayStatus === 'ON' ? '바로 전시' : '전시 중지로 등록'}</Badge>{' '}
+                    {!a.settings.deliveryInfo && <Badge variant="destructive">템플릿 필요</Badge>}
+                  </>
+                )}
+                <span className="ml-1 text-muted-foreground">{when(a.updatedAt)}</span>
+              </TableCell>
               <TableCell className="text-right">
                 <Button size="xs" variant="ghost" onClick={() => setEditing(a)}>
                   수정
@@ -260,6 +277,56 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
               <Input type="password" autoComplete="off" value={creds[k] ?? ''} placeholder={editing !== 'new' ? '바꿀 때만 입력' : ''} onChange={(e) => setCreds({ ...creds, [k]: e.target.value })} />
             </div>
           ))}
+          {channel === 'SMARTSTORE' && (
+            <>
+              <label className="flex items-center gap-2 text-xs">
+                <Switch checked={dryRun} onCheckedChange={setDryRun} /> DRY RUN (등록 직전에 멈추고 보낼 본문만 기록)
+              </label>
+              <div className="grid gap-1.5">
+                <Label className="text-xs">등록 후 전시 상태</Label>
+                <Select value={displayStatus} onValueChange={setDisplayStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SUSPENSION">전시 중지 (확인 후 직접 켜기)</SelectItem>
+                    <SelectItem value="ON">바로 전시</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editing !== 'new' && (
+                <div className="grid gap-1.5">
+                  <Label className="text-xs">템플릿 가져오기 (기존 상품의 원상품번호)</Label>
+                  <div className="flex gap-1.5">
+                    <Input value={templateNo} onChange={(e) => setTemplateNo(e.target.value.replace(/\D/g, ''))} placeholder="13677412599" />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={!templateNo}
+                      onClick={async () => {
+                        try {
+                          const a = await api<ChannelAccount>(`/api/tenants/${tenantId}/channel-accounts/${(editing as ChannelAccount).id}/template`, { json: { originProductNo: templateNo } })
+                          toast.success('배송·원산지·브랜드 설정을 가져왔습니다')
+                          setEditing(a)
+                          qc.invalidateQueries({ queryKey: ['accounts', tenantId] })
+                        } catch (e) {
+                          toast.error(errorMessage(e))
+                        }
+                      }}
+                    >
+                      가져오기
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {editing !== 'new' && Object.keys(editing.settings).length > 0 && (
+                <details className="sm:col-span-3">
+                  <summary className="cursor-pointer text-xs text-muted-foreground">현재 설정 (배송·원산지 등)</summary>
+                  <pre className="mt-1 max-h-60 overflow-auto rounded bg-background p-2 text-[11px]">{JSON.stringify(editing.settings, null, 2)}</pre>
+                </details>
+              )}
+            </>
+          )}
           <div className="flex items-end gap-2 sm:col-span-3">
             <Button size="sm" disabled={!displayName.trim()} onClick={save}>
               저장

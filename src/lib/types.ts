@@ -91,6 +91,7 @@ export interface ChannelAccount {
   channel: Channel
   displayName: string
   hasCredentials: boolean
+  settings: Record<string, unknown>
   active: boolean
   updatedAt: string
 }
