@@ -170,6 +170,9 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
   const [dryRun, setDryRun] = useState(true)
   const [displayStatus, setDisplayStatus] = useState('SUSPENSION')
   const [templateNo, setTemplateNo] = useState('')
+  const [group1, setGroup1] = useState('색상')
+  const [group2, setGroup2] = useState('사이즈')
+  const [lowercase, setLowercase] = useState(false)
 
   useEffect(() => {
     if (editing && editing !== 'new') {
@@ -178,6 +181,9 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
       setActive(editing.active)
       setDryRun(editing.settings.dryRun !== false)
       setDisplayStatus(String(editing.settings.displayStatus ?? 'SUSPENSION'))
+      setGroup1(String(editing.settings.optionGroupName1 ?? '색상'))
+      setGroup2(String(editing.settings.optionGroupName2 ?? '사이즈'))
+      setLowercase(editing.settings.lowercaseOptionValues === true)
     } else if (editing === 'new') {
       setDisplayName('')
       setActive(true)
@@ -190,7 +196,10 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
       const filled = Object.fromEntries(Object.entries(creds).filter(([, v]) => v.trim()))
       // 수정 때 인증정보를 비워 두면 기존 값을 유지한다
       const base = editing && editing !== 'new' ? editing.settings : {}
-      const settings = channel === 'SMARTSTORE' ? { ...base, dryRun, displayStatus } : base
+      const settings =
+        channel === 'SMARTSTORE'
+          ? { ...base, dryRun, displayStatus, optionGroupName1: group1.trim() || '색상', optionGroupName2: group2.trim() || '사이즈', lowercaseOptionValues: lowercase }
+          : base
       if (channel === 'SMARTSTORE' && !dryRun && !confirm('DRY RUN 을 끄면 승인한 상품이 실제 스마트스토어에 등록됩니다. 계속할까요?')) return
       const body = { channel, displayName, active, settings, credentials: Object.keys(filled).length ? filled : editing === 'new' ? {} : null }
       if (editing === 'new') await api(`/api/tenants/${tenantId}/channel-accounts`, { json: body })
@@ -294,9 +303,19 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs">옵션 그룹명 (1: 색상, 2: 사이즈 자리)</Label>
+                <div className="flex gap-1.5">
+                  <Input value={group1} onChange={(e) => setGroup1(e.target.value)} placeholder="색상 또는 color" />
+                  <Input value={group2} onChange={(e) => setGroup2(e.target.value)} placeholder="사이즈 또는 size" />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs">
+                <Switch checked={lowercase} onCheckedChange={setLowercase} /> 옵션값 영문 소문자로 (예: Free → free)
+              </label>
               {editing !== 'new' && (
                 <div className="grid gap-1.5">
-                  <Label className="text-xs">템플릿 가져오기 (기존 상품의 원상품번호)</Label>
+                  <Label className="text-xs">예전 방식 템플릿 (품목 레퍼런스가 없을 때만 사용)</Label>
                   <div className="flex gap-1.5">
                     <Input value={templateNo} onChange={(e) => setTemplateNo(e.target.value.replace(/\D/g, ''))} placeholder="13677412599" />
                     <Button
@@ -365,13 +384,17 @@ function MappingsCard({ tenantId }: { tenantId: number }) {
   }
 
   return (
-    <Section title="카테고리 매핑" description="상품의 카테고리 이름을 채널 카테고리 ID 로 바꿉니다. 없으면 등록이 '수정 필요'로 멈춥니다.">
+    <Section
+      title="카테고리 매핑"
+      description="상품의 카테고리 이름을 채널 카테고리 ID 로 바꿉니다. 스마트스토어는 품목마다 같은 판매자의 일반 상품(테스트·세일·품절 제외)을 레퍼런스로 지정하면 배송·반품·원산지·카테고리 속성을 그대로 복제합니다."
+    >
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>채널</TableHead>
             <TableHead>카테고리</TableHead>
             <TableHead>채널 카테고리 ID</TableHead>
+            <TableHead>레퍼런스 상품 (판매 설정 복제)</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -381,6 +404,7 @@ function MappingsCard({ tenantId }: { tenantId: number }) {
               <TableCell>{channelLabel[m.channel]}</TableCell>
               <TableCell>{m.category}</TableCell>
               <TableCell className="font-mono text-xs">{m.channelCategoryId}</TableCell>
+              <TableCell>{m.channel === 'SMARTSTORE' ? <ReferenceCell tenantId={tenantId} mapping={m} /> : <span className="text-xs text-muted-foreground">-</span>}</TableCell>
               <TableCell className="text-right">
                 <Button size="icon-xs" variant="ghost" onClick={() => remove(m.id)}>
                   <Trash2 />
@@ -409,6 +433,7 @@ function MappingsCard({ tenantId }: { tenantId: number }) {
             <TableCell>
               <Input className="h-7" value={channelCategoryId} onChange={(e) => setChannelCategoryId(e.target.value)} placeholder="50000807" />
             </TableCell>
+            <TableCell />
             <TableCell className="text-right">
               <Button size="xs" disabled={!category.trim() || !channelCategoryId.trim()} onClick={add}>
                 추가
@@ -418,5 +443,52 @@ function MappingsCard({ tenantId }: { tenantId: number }) {
         </TableBody>
       </Table>
     </Section>
+  )
+}
+
+function ReferenceCell({ tenantId, mapping }: { tenantId: number; mapping: CategoryMapping }) {
+  const qc = useQueryClient()
+  const [no, setNo] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function fetchRef(force: boolean) {
+    setBusy(true)
+    try {
+      await api(`/api/tenants/${tenantId}/category-mappings/${mapping.id}/reference`, { json: { originProductNo: no, force } })
+      toast.success('레퍼런스를 가져왔습니다')
+      setNo('')
+      qc.invalidateQueries({ queryKey: ['mappings', tenantId] })
+    } catch (e) {
+      const msg = errorMessage(e)
+      // 테스트·세일 등 특이 상품이면 한 번 더 확인하고 강제로 쓴다
+      if (!force && msg.includes('특이 상태') && confirm(msg + '\n\n그래도 이 상품을 레퍼런스로 쓸까요?')) {
+        setBusy(false)
+        return fetchRef(true)
+      }
+      toast.error(msg)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {mapping.referenceProductNo ? (
+        <div className="text-xs">
+          <span className="font-mono">{mapping.referenceProductNo}</span> {mapping.referenceName}
+          <span className="ml-1 text-muted-foreground">({when(mapping.referenceFetchedAt)})</span>
+        </div>
+      ) : (
+        <Badge variant="destructive" className="w-fit">
+          레퍼런스 없음
+        </Badge>
+      )}
+      <div className="flex gap-1">
+        <Input className="h-7 w-36" value={no} onChange={(e) => setNo(e.target.value.replace(/\D/g, ''))} placeholder="원상품번호" />
+        <Button size="xs" variant="secondary" disabled={!no || busy} onClick={() => fetchRef(false)}>
+          {mapping.referenceProductNo ? '교체' : '가져오기'}
+        </Button>
+      </div>
+    </div>
   )
 }

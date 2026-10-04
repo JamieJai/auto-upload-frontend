@@ -101,6 +101,10 @@ export interface CategoryMapping {
   channel: Channel
   category: string
   channelCategoryId: string
+  referenceProductNo: string | null
+  referenceName: string | null
+  referenceFetchedAt: string | null
+  reference: Record<string, unknown> | null
 }
 
 export interface JobSummary {

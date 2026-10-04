@@ -208,7 +208,7 @@ export function ProductEditPage() {
                 <Textarea rows={8} value={form.description} disabled={!editable} onChange={(e) => set({ description: e.target.value })} />
               </TextRow>
               <TextRow label="검색키워드" source={source('SEARCH_KEYWORDS')} onGenerate={editable ? () => generate('SEARCH_KEYWORDS') : undefined} busy={generating === 'SEARCH_KEYWORDS'}>
-                <Input value={form.keywords} disabled={!editable} onChange={(e) => set({ keywords: e.target.value })} placeholder="쉼표로 구분, 최대 10개" />
+                <Input value={form.keywords} disabled={!editable} onChange={(e) => set({ keywords: e.target.value })} placeholder="쉼표로 구분, 최대 10개, 각 한글 9자(29바이트) 이하" />
               </TextRow>
             </Section>
           )}
