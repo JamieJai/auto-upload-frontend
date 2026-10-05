@@ -19,12 +19,31 @@ type ImageGroup = 'MAIN_REST' | 'SUB' | 'DETAIL' | 'SIZE'
 type DetailBlock = 'TEXT' | 'MAIN_IMAGES' | 'SUB_IMAGES' | 'DETAIL_IMAGES' | 'SIZE_TABLE' | 'SIZE_IMAGES'
 
 export interface Style {
-  copy: { namePrefix: string; nameSuffix: string; nameMaxLength: number; descriptionMinLength: number; descriptionMaxLength: number; bannedWords: string[]; instructions: string }
+  copy: {
+    namePrefix: string
+    nameSuffix: string
+    nameMaxLength: number
+    descriptionMinLength: number
+    descriptionMaxLength: number
+    bannedWords: string[]
+    instructions: string
+    nameSource: 'AI' | 'SOURCE'
+    removeBrackets: boolean
+    removeParentheses: boolean
+    replacements: Record<string, string>
+  }
   tags: { min: number; max: number; textCase: Case; leadingRule: string }
   options: { groupName1: string; groupName2: string; colorCase: Case; sizeCase: Case; sizeAliases: Record<string, string> }
   images: { optionalOrder: ImageGroup[]; maxOptional: number }
   detail: { blocks: DetailBlock[] }
-  registration: { displayStatus: 'SUSPENSION' | 'ON'; discountValue: number; discountUnit: 'PERCENT' | 'WON' }
+  registration: {
+    displayStatus: 'SUSPENSION' | 'ON'
+    discountValue: number
+    discountUnit: 'PERCENT' | 'WON'
+    originMode: 'REFERENCE' | 'KOREA_OR_OTHER'
+    otherOriginCode: string
+    otherOriginContent: string
+  }
 }
 
 interface StyleView {
@@ -137,6 +156,43 @@ export function StyleCard({ tenantId }: { tenantId: number }) {
       </div>
 
       <Group title="문구">
+        <Field label="상품명 만드는 법">
+          <Select value={s.copy.nameSource} onValueChange={(v) => set('copy', { nameSource: v as 'AI' | 'SOURCE' })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="AI">AI 가 생성</SelectItem>
+              <SelectItem value="SOURCE">도매처 원문 상품명을 정리해서 사용</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="원문 상품명 정리">
+          <div className="flex flex-col gap-1.5 pt-1 text-sm">
+            <label className="flex items-center gap-2">
+              <Checkbox checked={s.copy.removeParentheses} onCheckedChange={(v) => set('copy', { removeParentheses: v === true })} /> ( ) 안 내용 지우기
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={s.copy.removeBrackets} onCheckedChange={(v) => set('copy', { removeBrackets: v === true })} /> [ ] 안 내용 지우기
+            </label>
+          </div>
+        </Field>
+        <Field label="단어 바꾸기 (예: mtm=맨투맨, 대소문자 무시, AI 상품명에도 적용)" wide>
+          <Input
+            defaultValue={Object.entries(s.copy.replacements).map(([k, v]) => `${k}=${v}`).join(', ')}
+            onBlur={(e) =>
+              set('copy', {
+                replacements: Object.fromEntries(
+                  e.target.value
+                    .split(',')
+                    .map((x) => x.split('=').map((y) => y.trim()))
+                    .filter((x) => x.length === 2 && x[0]),
+                ),
+              })
+            }
+            placeholder="mtm=맨투맨, ops=원피스"
+          />
+        </Field>
         <Field label="상품명 앞에 붙일 말">
           <Input value={s.copy.namePrefix} onChange={(e) => set('copy', { namePrefix: e.target.value })} placeholder="[브랜드] " />
         </Field>
@@ -222,6 +278,28 @@ export function StyleCard({ tenantId }: { tenantId: number }) {
         <Field label="블록 순서 (체크한 것만, 위에서부터)" wide>
           <Ordered all={detailBlocks} value={s.detail.blocks} onChange={(v) => set('detail', { blocks: v })} />
         </Field>
+      </Group>
+
+      <Group title="원산지">
+        <Field label="원산지 정하는 법">
+          <Select value={s.registration.originMode} onValueChange={(v) => set('registration', { originMode: v as 'REFERENCE' | 'KOREA_OR_OTHER' })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="REFERENCE">레퍼런스 상품 설정 그대로</SelectItem>
+              <SelectItem value="KOREA_OR_OTHER">제조국이 대한민국이면 국산, 아니면 기타</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        {s.registration.originMode === 'KOREA_OR_OTHER' && (
+          <Field label="'기타' 원산지 코드 · 표시 문구">
+            <div className="flex gap-1.5">
+              <Input className="w-28" value={s.registration.otherOriginCode} onChange={(e) => set('registration', { otherOriginCode: e.target.value.trim() })} placeholder="네이버 코드" />
+              <Input value={s.registration.otherOriginContent} onChange={(e) => set('registration', { otherOriginContent: e.target.value })} />
+            </div>
+          </Field>
+        )}
       </Group>
 
       <Group title="등록">

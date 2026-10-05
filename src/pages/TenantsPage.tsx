@@ -93,13 +93,14 @@ function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: T
     subtract: pr.subtract != null ? String(pr.subtract) : '',
     defaultStock: pr.defaultStock != null ? String(pr.defaultStock) : '',
   })
-  const sample = 18000
+  const [roundMode, setRoundMode] = useState<string>((pr as { roundMode?: string }).roundMode ?? 'UP')
+  const sample = 21000
   const preview = (() => {
     const m = Number(rule.multiplier)
     if (!m) return null
-    let v = sample * m
+    let v = Math.round(sample * m * 1000) / 1000
     const u = Number(rule.roundUnit)
-    if (u > 0) v = Math.ceil(v / u) * u
+    if (u > 0) v = (roundMode === 'DOWN' ? Math.floor(v / u) : roundMode === 'NEAREST' ? Math.round(v / u) : Math.ceil(v / u)) * u
     return v - (Number(rule.subtract) || 0)
   })()
 
@@ -113,7 +114,9 @@ function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: T
         brandTone: tone.trim() || null,
         noticeDefaults: Object.fromEntries(Object.entries(notice).filter(([, v]) => v.trim())),
         allowedImageDomains: domains.split(/\s+/).filter(Boolean),
-        priceRule: rule.multiplier ? Object.fromEntries(Object.entries(rule).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, Number(v)])) : null,
+        priceRule: rule.multiplier
+          ? { ...Object.fromEntries(Object.entries(rule).filter(([, v]) => v.trim() !== '').map(([k, v]) => [k, Number(v)])), roundMode }
+          : null,
         active,
       }
       const t = tenant ? await api<Tenant>(`/api/tenants/${tenant.id}`, { method: 'PUT', json: body }) : await api<Tenant>('/api/tenants', { json: body })
@@ -186,12 +189,25 @@ function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: T
           <Textarea rows={3} value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="wholesale.example.com" />
         </div>
       </div>
-      <h3 className="mt-4 mb-2 text-xs font-medium">가격 규칙 (확장으로 받은 상품의 판매가 = 도매가 × 배수 → 단위 올림 → 차감)</h3>
-      <div className="grid gap-3 sm:grid-cols-5">
+      <h3 className="mt-4 mb-2 text-xs font-medium">가격 규칙 (확장으로 받은 상품의 판매가 = 도매가 × 배수 → 단위 맞추기 → 차감)</h3>
+      <div className="grid gap-3 sm:grid-cols-6">
+        <div className="grid gap-1.5">
+          <Label className="text-xs">단위 맞추기</Label>
+          <Select value={roundMode} onValueChange={setRoundMode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="UP">올림</SelectItem>
+              <SelectItem value="DOWN">버림</SelectItem>
+              <SelectItem value="NEAREST">반올림</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         {(
           [
             ['multiplier', '배수', '2'],
-            ['roundUnit', '올림 단위(원)', '1000'],
+            ['roundUnit', '맞출 단위(원)', '100'],
             ['subtract', '차감(원)', '100'],
             ['defaultStock', '옵션당 기본 재고', '10'],
           ] as const
@@ -202,7 +218,7 @@ function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: T
           </div>
         ))}
         <div className="flex items-end pb-2 text-xs text-muted-foreground">
-          {preview != null ? `예: 도매가 18,000원 → ${preview.toLocaleString('ko-KR')}원` : '배수를 비우면 판매가는 직접 입력'}
+          {preview != null ? `예: 도매가 21,000원 → ${preview.toLocaleString('ko-KR')}원` : '배수를 비우면 판매가는 직접 입력'}
         </div>
       </div>
       <h3 className="mt-4 mb-2 text-xs font-medium">고시정보 기본값 (새 상품의 빈 칸에 채워짐)</h3>

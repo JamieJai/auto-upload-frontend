@@ -1,7 +1,13 @@
 // 설정은 chrome.storage.local 에만 둔다 (토큰은 대시보드에서 언제든 폐기할 수 있다)
 async function loadSettings() {
-  const s = await chrome.storage.local.get(['dashboard', 'token', 'tenantId'])
-  return { dashboard: (s.dashboard || '').replace(/\/+$/, ''), token: s.token || '', tenantId: s.tenantId || null }
+  const s = await chrome.storage.local.get(['dashboard', 'token', 'tenantId', 'sizeFilter', 'watermarkTemplate'])
+  return {
+    dashboard: (s.dashboard || '').replace(/\/+$/, ''),
+    token: s.token || '',
+    tenantId: s.tenantId || null,
+    sizeFilter: s.sizeFilter || [],
+    watermarkTemplate: s.watermarkTemplate || '',
+  }
 }
 
 async function api(settings, path, init = {}) {

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { Trash2, Upload } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Eraser, RotateCcw, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,38 @@ import { WebImageFinder } from './WebImageFinder'
 
 export function ImagesCard({ product, tenantId, editable, onChange }: { product: Product; tenantId: number; editable: boolean; onChange: () => void }) {
   const [busy, setBusy] = useState<Slot | null>(null)
+  const [wmBusy, setWmBusy] = useState(false)
+  const [template, setTemplate] = useState('')
   const inputs = useRef<Partial<Record<Slot, HTMLInputElement | null>>>({})
+  const templates = useQuery({
+    queryKey: ['watermarks'],
+    queryFn: () => api<{ name: string; width: number; height: number }[]>('/api/watermarks'),
+    enabled: editable,
+  })
+  const ver = (img: { sha256: string | null }) => (img.sha256 ? `?v=${img.sha256.slice(0, 10)}` : '')
+
+  async function removeWatermark() {
+    setWmBusy(true)
+    try {
+      const r = await api<{ processed: number; skipped: number; errors: string[] }>(`/api/tenants/${tenantId}/products/${product.id}/watermark`, { json: { template } })
+      toast.success(`워터마크 제거 ${r.processed}장 (크기가 달라 건너뜀 ${r.skipped}장)`)
+      if (r.errors.length) toast.error(r.errors.join(' / '))
+      onChange()
+    } catch (e) {
+      toast.error(errorMessage(e))
+    } finally {
+      setWmBusy(false)
+    }
+  }
+
+  async function restore(imageId: number) {
+    try {
+      await api(`/api/tenants/${tenantId}/products/${product.id}/images/${imageId}/restore`, { method: 'POST' })
+      onChange()
+    } catch (e) {
+      toast.error(errorMessage(e))
+    }
+  }
 
   async function upload(slot: Slot, files: FileList | null) {
     if (!files?.length) return
@@ -41,7 +73,28 @@ export function ImagesCard({ product, tenantId, editable, onChange }: { product:
   }
 
   return (
-    <Section title="이미지" description={`여러 상품을 한꺼번에 올릴 때는 이미지 화면에서 파일명 규칙(${product.code}_detail_01.jpg)으로 올리세요.`}>
+    <Section
+      title="이미지"
+      description={`여러 상품을 한꺼번에 올릴 때는 이미지 화면에서 파일명 규칙(${product.code}_detail_01.jpg)으로 올리세요.`}
+      actions={
+        editable &&
+        (templates.data?.length ?? 0) > 0 && (
+          <div className="flex items-center gap-1.5">
+            <select className="h-7 rounded-md border bg-background px-2 text-xs" value={template} onChange={(e) => setTemplate(e.target.value)}>
+              <option value="">워터마크 템플릿</option>
+              {templates.data!.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name} ({t.width}×{t.height})
+                </option>
+              ))}
+            </select>
+            <Button size="xs" variant="outline" disabled={!template || wmBusy} onClick={removeWatermark}>
+              <Eraser /> {wmBusy ? '지우는 중…' : '워터마크 제거'}
+            </Button>
+          </div>
+        )
+      }
+    >
       <div className="flex flex-col gap-4">
         {slots.map((s) => {
           const imgs = product.images.filter((i) => i.slot === s.value)
@@ -65,9 +118,24 @@ export function ImagesCard({ product, tenantId, editable, onChange }: { product:
               <div className="flex flex-wrap gap-2">
                 {imgs.map((img) => (
                   <div key={img.id} className="group relative">
-                    <a href={fileUrl(img.path)} target="_blank" rel="noreferrer">
-                      <img src={fileUrl(img.thumbPath ?? img.path)} alt={`${s.label} ${img.seq}`} className="size-24 rounded border object-cover" loading="lazy" />
+                    <a href={fileUrl(img.path) + ver(img)} target="_blank" rel="noreferrer">
+                      <img src={fileUrl(img.thumbPath ?? img.path) + ver(img)} alt={`${s.label} ${img.seq}`} className="size-24 rounded border object-cover" loading="lazy" />
                     </a>
+                    {img.watermarkTemplate && (
+                      <span className="absolute top-1 left-1 rounded bg-emerald-600/90 px-1 text-[9px] text-white" title={`${img.watermarkTemplate} 로 워터마크 제거됨`}>
+                        WM 제거
+                      </span>
+                    )}
+                    {editable && img.originalPath && (
+                      <button
+                        type="button"
+                        title="원본으로 되돌리기"
+                        className="absolute right-1 bottom-5 hidden rounded bg-background/90 p-0.5 group-hover:block"
+                        onClick={() => restore(img.id)}
+                      >
+                        <RotateCcw className="size-3.5" />
+                      </button>
+                    )}
                     <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1 text-[10px]">
                       {img.seq} · {img.width}×{img.height}
                     </span>

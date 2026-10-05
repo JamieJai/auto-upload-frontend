@@ -265,12 +265,12 @@ function Field({ label, required, locked, wide, children }: { label: string; req
   )
 }
 
-function TextRow({ label, source, onGenerate, busy, children }: { label: string; source?: 'MANUAL' | 'AI'; onGenerate?: () => void; busy: boolean; children: React.ReactNode }) {
+function TextRow({ label, source, onGenerate, busy, children }: { label: string; source?: 'MANUAL' | 'AI' | 'SOURCE'; onGenerate?: () => void; busy: boolean; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5 py-1.5">
       <div className="flex items-center gap-2">
         <Label className="text-xs">{label}</Label>
-        {source && <Badge variant={source === 'AI' ? 'secondary' : 'outline'}>{source === 'AI' ? 'AI 생성' : '직접 입력'}</Badge>}
+        {source && <Badge variant={source === 'MANUAL' ? 'outline' : 'secondary'}>{{ AI: 'AI 생성', SOURCE: '도매처 원문', MANUAL: '직접 입력' }[source]}</Badge>}
         {onGenerate && (
           <Button variant="ghost" size="xs" className="ml-auto" onClick={onGenerate} disabled={busy}>
             <Sparkles /> {busy ? '생성 중…' : 'AI로 생성'}

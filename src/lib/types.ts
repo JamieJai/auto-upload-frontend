@@ -55,6 +55,9 @@ export interface ProductImage {
   sourceUrl: string | null
   width: number | null
   height: number | null
+  sha256: string | null
+  originalPath: string | null
+  watermarkTemplate: string | null
 }
 
 export interface Product {
@@ -67,7 +70,7 @@ export interface Product {
   name: string | null
   description: string | null
   searchKeywords: string[]
-  fieldSources: Partial<Record<TextField, 'MANUAL' | 'AI'>>
+  fieldSources: Partial<Record<TextField, 'MANUAL' | 'AI' | 'SOURCE'>>
   salePrice: number | null
   notice: Record<string, string | null>
   options: ProductOption[]
