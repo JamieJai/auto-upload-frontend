@@ -35,7 +35,8 @@ export interface Style {
   tags: { min: number; max: number; textCase: Case; leadingRule: string }
   options: { groupName1: string; groupName2: string; colorCase: Case; sizeCase: Case; sizeAliases: Record<string, string> }
   images: { optionalOrder: ImageGroup[]; maxOptional: number }
-  detail: { blocks: DetailBlock[] }
+  detail: { blocks: DetailBlock[]; storeHeaderMarker: boolean }
+  rules: { requireMeasurements: boolean; minImages: Record<string, number> }
   registration: {
     displayStatus: 'SUSPENSION' | 'ON'
     discountValue: number
@@ -43,6 +44,10 @@ export interface Style {
     originMode: 'REFERENCE' | 'KOREA_OR_OTHER'
     otherOriginCode: string
     otherOriginContent: string
+    noticeMode: 'AS_IS' | 'DETAIL_REFERENCE'
+    noticeText: string
+    packDateMode: 'TEXT' | 'CURRENT_MONTH'
+    kcMode: 'REFERENCE' | 'NOT_TARGET'
   }
 }
 
@@ -277,6 +282,71 @@ export function StyleCard({ tenantId }: { tenantId: number }) {
       <Group title="상세페이지 구성">
         <Field label="블록 순서 (체크한 것만, 위에서부터)" wide>
           <Ordered all={detailBlocks} value={s.detail.blocks} onChange={(v) => set('detail', { blocks: v })} />
+        </Field>
+        <Field label="스마트스토어 머릿말" wide>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={s.detail.storeHeaderMarker} onCheckedChange={(v) => set('detail', { storeHeaderMarker: v === true })} />
+            상세 맨 앞에 머릿말 자리 표시 넣기 (스마트스토어에서 설정한 머릿말이 들어가는 자리)
+          </label>
+        </Field>
+      </Group>
+
+      <Group title="제출 전 필수 항목">
+        <Field label="실측">
+          <label className="flex items-center gap-2 pt-1 text-sm">
+            <Checkbox checked={s.rules.requireMeasurements} onCheckedChange={(v) => set('rules', { requireMeasurements: v === true })} />
+            사이즈마다 실측 필수
+          </label>
+        </Field>
+        <Field label="사진 최소 장수 (대표 / 연출 / 디테일 / 사이즈표)">
+          <div className="flex gap-1.5">
+            {(['main', 'sub', 'detail', 'size'] as const).map((k) => (
+              <Num key={k} value={s.rules.minImages[k] ?? 0} onChange={(v) => set('rules', { minImages: { ...s.rules.minImages, [k]: v } })} />
+            ))}
+          </div>
+        </Field>
+      </Group>
+
+      <Group title="상품정보제공고시 · 인증">
+        <Field label="고시정보">
+          <Select value={s.registration.noticeMode} onValueChange={(v) => set('registration', { noticeMode: v as 'AS_IS' | 'DETAIL_REFERENCE' })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="AS_IS">입력값 그대로</SelectItem>
+              <SelectItem value="DETAIL_REFERENCE">모든 항목을 같은 문구로 (예: 상품상세참조)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        {s.registration.noticeMode === 'DETAIL_REFERENCE' && (
+          <>
+            <Field label="고시 문구">
+              <Input value={s.registration.noticeText} onChange={(e) => set('registration', { noticeText: e.target.value })} />
+            </Field>
+            <Field label="제조연월">
+              <Select value={s.registration.packDateMode} onValueChange={(v) => set('registration', { packDateMode: v as 'TEXT' | 'CURRENT_MONTH' })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TEXT">고시 문구 그대로</SelectItem>
+                  <SelectItem value="CURRENT_MONTH">등록 월 (YYYY-MM) — 네이버가 글자를 거부할 때</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </>
+        )}
+        <Field label="KC 인증">
+          <Select value={s.registration.kcMode} onValueChange={(v) => set('registration', { kcMode: v as 'REFERENCE' | 'NOT_TARGET' })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="REFERENCE">레퍼런스 상품 설정 그대로</SelectItem>
+              <SelectItem value="NOT_TARGET">인증 대상 아님</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
       </Group>
 

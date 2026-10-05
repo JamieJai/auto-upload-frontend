@@ -29,7 +29,7 @@ export function ValidationCard({ tenantId, productId, dirty }: { tenantId: numbe
         </ul>
       )}
       {dirty && <p className="mt-3 text-xs text-muted-foreground">저장하지 않은 변경이 있습니다. 저장해야 검증에 반영됩니다.</p>}
-      <p className="mt-3 text-xs text-muted-foreground">상품명·상세설명은 비워 둬도 제출할 수 있습니다 (AI 가 생성).</p>
+      <p className="mt-3 text-xs text-muted-foreground">상품명·상세설명은 비워 둬도 제출할 수 있습니다 (AI 가 생성). 필수 항목은 판매자 특성에 따라 다릅니다.</p>
     </section>
   )
 }

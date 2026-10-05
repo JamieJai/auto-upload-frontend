@@ -14,6 +14,7 @@ export function ImagesCard({ product, tenantId, editable, onChange }: { product:
   const [busy, setBusy] = useState<Slot | null>(null)
   const [wmBusy, setWmBusy] = useState(false)
   const [template, setTemplate] = useState('')
+  const [redo, setRedo] = useState(false)
   const inputs = useRef<Partial<Record<Slot, HTMLInputElement | null>>>({})
   const templates = useQuery({
     queryKey: ['watermarks'],
@@ -22,12 +23,24 @@ export function ImagesCard({ product, tenantId, editable, onChange }: { product:
   })
   const ver = (img: { sha256: string | null }) => (img.sha256 ? `?v=${img.sha256.slice(0, 10)}` : '')
 
+  /** 사진당 20초 안팎이라 워커 작업으로 돌리고 끝날 때까지 기다린다 */
   async function removeWatermark() {
     setWmBusy(true)
     try {
-      const r = await api<{ processed: number; skipped: number; errors: string[] }>(`/api/tenants/${tenantId}/products/${product.id}/watermark`, { json: { template } })
-      toast.success(`워터마크 제거 ${r.processed}장 (크기가 달라 건너뜀 ${r.skipped}장)`)
-      if (r.errors.length) toast.error(r.errors.join(' / '))
+      const { jobId } = await api<{ jobId: number }>(`/api/tenants/${tenantId}/products/${product.id}/watermark`, { json: { template, redo } })
+      toast.info(`워터마크 제거를 시작했습니다 (작업 #${jobId}, 사진당 20초 안팎)`)
+      for (let i = 0; i < 180; i++) {
+        await new Promise((r) => setTimeout(r, 5000))
+        const d = await api<{ job: { status: string; lastError: string | null }; logs: { message: string }[] }>(`/api/jobs/${jobId}`)
+        if (d.job.status === 'SUCCEEDED') {
+          toast.success(d.logs[d.logs.length - 1]?.message ?? '완료')
+          break
+        }
+        if (d.job.status === 'FAILED_INVALID' || d.job.status === 'CANCELLED') {
+          toast.error(d.job.lastError ?? '실패')
+          break
+        }
+      }
       onChange()
     } catch (e) {
       toast.error(errorMessage(e))
@@ -88,6 +101,9 @@ export function ImagesCard({ product, tenantId, editable, onChange }: { product:
                 </option>
               ))}
             </select>
+            <label className="flex items-center gap-1 text-[11px] text-muted-foreground" title="이미 처리한 사진도 보관한 원본에서 다시 처리">
+              <input type="checkbox" checked={redo} onChange={(e) => setRedo(e.target.checked)} /> 원본에서 다시
+            </label>
             <Button size="xs" variant="outline" disabled={!template || wmBusy} onClick={removeWatermark}>
               <Eraser /> {wmBusy ? '지우는 중…' : '워터마크 제거'}
             </Button>

@@ -69,7 +69,7 @@ export function MeasurementsCard({ product, tenantId, editable, onChange }: { pr
   return (
     <Section
       title="실측 (cm)"
-      description="옵션의 사이즈마다 한 칸 이상 입력해야 제출할 수 있습니다."
+      description="선택 항목입니다 (특성에서 필수로 바꿀 수 있음). 입력하면 상세페이지에 실측표가 들어갑니다."
       actions={
         editable && (
           <Button size="xs" variant="outline" disabled={busy || !dirty} onClick={save}>

@@ -48,7 +48,7 @@ export const slots: { value: Slot; label: string; min: number }[] = [
   { value: 'main', label: '대표', min: 1 },
   { value: 'sub', label: '연출컷', min: 2 },
   { value: 'detail', label: '디테일', min: 2 },
-  { value: 'size', label: '사이즈표', min: 1 },
+  { value: 'size', label: '사이즈표', min: 0 },
 ]
 
 /** 상품정보제공고시(의류). 키는 백엔드 NoticeField.key 와 같다 */
