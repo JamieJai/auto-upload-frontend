@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="popup">
+  <header>
+    <strong>대시보드로 보내기</strong>
+    <a href="#" id="openOptions">설정</a>
+  </header>
+  <div id="msg"></div>
+  <section id="form" hidden>
+    <label>판매자 <select id="tenant"></select></label>
+    <div class="page">
+      <div id="title" class="title"></div>
+      <div id="textInfo" class="muted"></div>
+    </div>
+    <div class="row">
+      <span id="imgInfo" class="muted"></span>
+      <span class="spacer"></span>
+      <button id="none" class="link">모두 해제</button>
+      <button id="all" class="link">모두 선택</button>
+    </div>
+    <div id="images" class="grid"></div>
+    <button id="send" class="primary">보내기</button>
+  </section>
+  <section id="done" hidden></section>
+  <script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

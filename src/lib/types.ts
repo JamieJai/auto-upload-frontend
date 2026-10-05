@@ -20,6 +20,7 @@ export interface Tenant {
   brandTone: string | null
   noticeDefaults: Record<string, string>
   allowedImageDomains: string[]
+  priceRule: { multiplier?: number; add?: number; roundUnit?: number; subtract?: number; defaultStock?: number } | null
   active: boolean
 }
 

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>보내기 설정</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="options">
+  <h1>상품등록 자동화 — 보내기 설정</h1>
+  <label>대시보드 주소
+    <input id="dashboard" placeholder="http://192.168.0.41 (도메인이 생기면 https://... 로 바꾸기)">
+  </label>
+  <label>확장 토큰
+    <input id="token" type="password" placeholder="대시보드 → 설정 → 브라우저 확장 에서 발급한 ar_... 값">
+  </label>
+  <button id="save">저장하고 연결 확인</button>
+  <p id="status"></p>
+  <p class="hint">저장할 때 크롬이 "모든 웹사이트의 데이터 읽기" 권한을 한 번 묻습니다. 대시보드로 보내고, 로그인된 도매처 이미지 서버에서 원본 이미지를 받으려면 필요합니다. 확장은 팝업에서 "보내기"를 누른 페이지만 읽습니다.</p>
+  <script src="common.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

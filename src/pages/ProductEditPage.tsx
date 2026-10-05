@@ -11,6 +11,7 @@ import { ImagesCard } from '@/components/product/ImagesCard'
 import { MeasurementsCard } from '@/components/product/MeasurementsCard'
 import { OptionsCard } from '@/components/product/OptionsCard'
 import { Section } from '@/components/product/Section'
+import { SourcePanel } from '@/components/product/SourcePanel'
 import { ValidationCard } from '@/components/product/ValidationCard'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -237,8 +238,9 @@ export function ProductEditPage() {
           {isNew && <p className="text-sm text-muted-foreground">만들기를 누르면 문구·옵션·실측·이미지를 입력할 수 있습니다.</p>}
         </div>
         {product && (
-          <div className="lg:sticky lg:top-4 lg:self-start">
+          <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto">
             <ValidationCard tenantId={current.id} productId={product.id} dirty={dirty} />
+            <SourcePanel tenantId={current.id} productId={product.id} />
           </div>
         )}
       </div>

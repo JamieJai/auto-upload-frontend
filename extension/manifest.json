@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "상품등록 자동화 — 보내기",
+  "version": "0.1.0",
+  "description": "지금 보고 있는 도매처 상품 페이지(글·이미지)를 상품등록 자동화 대시보드로 보냅니다.",
+  "action": { "default_popup": "popup.html", "default_title": "대시보드로 보내기" },
+  "options_page": "options.html",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"]
+}

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { ClipboardCheck, Gauge, Images, LogOut, Package, Store } from 'lucide-react'
+import { ClipboardCheck, Gauge, Images, LogOut, Package, Settings, Store } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -14,6 +14,7 @@ const nav = [
   { to: '/images', label: '이미지', icon: Images },
   { to: '/approvals', label: '승인 대기', icon: ClipboardCheck },
   { to: '/tenants', label: '판매자 관리', icon: Store },
+  { to: '/settings', label: '설정', icon: Settings },
 ]
 
 export function Layout({ username }: { username: string }) {

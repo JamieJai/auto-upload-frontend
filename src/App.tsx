@@ -12,6 +12,7 @@ import { JobDetailPage } from '@/pages/JobDetailPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { ProductEditPage } from '@/pages/ProductEditPage'
 import { ProductsPage } from '@/pages/ProductsPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { TenantsPage } from '@/pages/TenantsPage'
 
 export default function App() {
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="approvals" element={<ApprovalsPage />} />
           <Route path="jobs/:id" element={<JobDetailPage />} />
           <Route path="tenants" element={<TenantsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
