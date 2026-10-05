@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { PageTitle } from '@/components/app/Layout'
+import { StyleCard } from '@/components/app/StyleCard'
 import { Section } from '@/components/product/Section'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -62,6 +63,7 @@ export function TenantsPage() {
           }} />
           {editing && (
             <>
+              <StyleCard key={editing.id} tenantId={editing.id} />
               <AccountsCard tenantId={editing.id} />
               <MappingsCard tenantId={editing.id} />
             </>
@@ -74,6 +76,8 @@ export function TenantsPage() {
 
 function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: Tenant) => void }) {
   const qc = useQueryClient()
+  const { tenants } = useTenant()
+  const [styleFrom, setStyleFrom] = useState('')
   const [code, setCode] = useState(tenant?.code ?? '')
   const [name, setName] = useState(tenant?.name ?? '')
   const [prefix, setPrefix] = useState(tenant?.productCodePrefix ?? '')
@@ -113,6 +117,10 @@ function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: T
         active,
       }
       const t = tenant ? await api<Tenant>(`/api/tenants/${tenant.id}`, { method: 'PUT', json: body }) : await api<Tenant>('/api/tenants', { json: body })
+      if (!tenant && styleFrom) {
+        // 새 판매자: 고른 판매자의 특성(문체·가격 규칙·고시 기본값 포함)을 바로 복사
+        await api(`/api/tenants/${t.id}/style/copy`, { json: { sourceTenantId: Number(styleFrom) } })
+      }
       await qc.invalidateQueries({ queryKey: ['tenants'] })
       toast.success('저장했습니다')
       onSaved(t)
@@ -148,6 +156,23 @@ function TenantForm({ tenant, onSaved }: { tenant: Tenant | null; onSaved: (t: T
           <Label className="text-xs">이름</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
+        {!tenant && tenants.length > 0 && (
+          <div className="grid gap-1.5 sm:col-span-3">
+            <Label className="text-xs">특성 복제 (다듬어 둔 판매자의 규칙을 그대로 가져오기)</Label>
+            <Select value={styleFrom} onValueChange={setStyleFrom}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="복제하지 않음" />
+              </SelectTrigger>
+              <SelectContent>
+                {tenants.map((x) => (
+                  <SelectItem key={x.id} value={String(x.id)}>
+                    {x.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="grid gap-1.5">
           <Label className="text-xs">상품코드 접두어</Label>
           <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="SS26" />
@@ -204,11 +229,7 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
   const [creds, setCreds] = useState<Record<string, string>>({})
   const [active, setActive] = useState(true)
   const [dryRun, setDryRun] = useState(true)
-  const [displayStatus, setDisplayStatus] = useState('SUSPENSION')
   const [templateNo, setTemplateNo] = useState('')
-  const [group1, setGroup1] = useState('색상')
-  const [group2, setGroup2] = useState('사이즈')
-  const [lowercase, setLowercase] = useState(false)
 
   useEffect(() => {
     if (editing && editing !== 'new') {
@@ -216,10 +237,6 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
       setDisplayName(editing.displayName)
       setActive(editing.active)
       setDryRun(editing.settings.dryRun !== false)
-      setDisplayStatus(String(editing.settings.displayStatus ?? 'SUSPENSION'))
-      setGroup1(String(editing.settings.optionGroupName1 ?? '색상'))
-      setGroup2(String(editing.settings.optionGroupName2 ?? '사이즈'))
-      setLowercase(editing.settings.lowercaseOptionValues === true)
     } else if (editing === 'new') {
       setDisplayName('')
       setActive(true)
@@ -234,7 +251,7 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
       const base = editing && editing !== 'new' ? editing.settings : {}
       const settings =
         channel === 'SMARTSTORE'
-          ? { ...base, dryRun, displayStatus, optionGroupName1: group1.trim() || '색상', optionGroupName2: group2.trim() || '사이즈', lowercaseOptionValues: lowercase }
+          ? { ...base, dryRun }
           : base
       if (channel === 'SMARTSTORE' && !dryRun && !confirm('DRY RUN 을 끄면 승인한 상품이 실제 스마트스토어에 등록됩니다. 계속할까요?')) return
       const body = { channel, displayName, active, settings, credentials: Object.keys(filled).length ? filled : editing === 'new' ? {} : null }
@@ -272,7 +289,6 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
                 {a.channel === 'SMARTSTORE' && (
                   <>
                     <Badge variant={a.settings.dryRun === false ? 'default' : 'secondary'}>{a.settings.dryRun === false ? '실제 등록' : 'DRY RUN'}</Badge>{' '}
-                    <Badge variant="outline">{a.settings.displayStatus === 'ON' ? '바로 전시' : '전시 중지로 등록'}</Badge>{' '}
                     {!a.settings.deliveryInfo && <Badge variant="destructive">템플릿 필요</Badge>}
                   </>
                 )}
@@ -327,28 +343,7 @@ function AccountsCard({ tenantId }: { tenantId: number }) {
               <label className="flex items-center gap-2 text-xs">
                 <Switch checked={dryRun} onCheckedChange={setDryRun} /> DRY RUN (등록 직전에 멈추고 보낼 본문만 기록)
               </label>
-              <div className="grid gap-1.5">
-                <Label className="text-xs">등록 후 전시 상태</Label>
-                <Select value={displayStatus} onValueChange={setDisplayStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SUSPENSION">전시 중지 (확인 후 직접 켜기)</SelectItem>
-                    <SelectItem value="ON">바로 전시</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs">옵션 그룹명 (1: 색상, 2: 사이즈 자리)</Label>
-                <div className="flex gap-1.5">
-                  <Input value={group1} onChange={(e) => setGroup1(e.target.value)} placeholder="색상 또는 color" />
-                  <Input value={group2} onChange={(e) => setGroup2(e.target.value)} placeholder="사이즈 또는 size" />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-xs">
-                <Switch checked={lowercase} onCheckedChange={setLowercase} /> 옵션값 영문 소문자로 (예: Free → free)
-              </label>
+              <p className="text-xs text-muted-foreground sm:col-span-2">옵션 표기·전시 상태·할인은 위 &quot;특성&quot;에서 정합니다.</p>
               {editing !== 'new' && (
                 <div className="grid gap-1.5">
                   <Label className="text-xs">예전 방식 템플릿 (품목 레퍼런스가 없을 때만 사용)</Label>
