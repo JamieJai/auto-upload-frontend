@@ -30,6 +30,7 @@ export interface Style {
     nameSource: 'AI' | 'SOURCE'
     removeBrackets: boolean
     removeParentheses: boolean
+    translateEnglish: boolean
     replacements: Record<string, string>
   }
   tags: { min: number; max: number; textCase: Case; leadingRule: string }
@@ -179,6 +180,9 @@ export function StyleCard({ tenantId }: { tenantId: number }) {
             </label>
             <label className="flex items-center gap-2">
               <Checkbox checked={s.copy.removeBrackets} onCheckedChange={(v) => set('copy', { removeBrackets: v === true })} /> [ ] 안 내용 지우기
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={s.copy.translateEnglish} onCheckedChange={(v) => set('copy', { translateEnglish: v === true })} /> 영어 단어를 한국어로 (mtm→맨투맨, ops→원피스)
             </label>
           </div>
         </Field>
