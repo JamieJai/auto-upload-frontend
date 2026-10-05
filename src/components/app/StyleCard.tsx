@@ -119,7 +119,7 @@ export function StyleCard({ tenantId }: { tenantId: number }) {
         )}
         <span className="ml-auto flex items-center gap-1.5">
           <Select value={source} onValueChange={setSource}>
-            <SelectTrigger size="sm" className="w-44">
+            <SelectTrigger size="sm" className="w-56">
               <SelectValue placeholder="다른 판매자 특성 가져오기" />
             </SelectTrigger>
             <SelectContent>
